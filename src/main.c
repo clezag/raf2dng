@@ -129,9 +129,12 @@ int main(int argc, char** argv){
 
     fuji_raw* raw = malloc(sizeof *raw);
     memset(raw, 0, sizeof *raw);
-    parse_raw(buf, raw);
-
+    parse_raw(buf, raw); 
     free(buf);
+
+    FILE* jpg = fopen("test.jpg", "wb");
+    fwrite(raw->jpeg_preview, raw->jpeg_img_length, 1, jpg);
+    fclose(jpg);
 
     return 0;
 }
