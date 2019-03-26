@@ -69,7 +69,6 @@ void readFileToBuffer(byte** buf, char* filename){
 void parse_raw(byte* buf, fuji_raw* raw){
     size_t cur_offset = 0;
 
-
     cur_offset += read(raw->magic, buf, cur_offset, 16);
     cur_offset += 12; // unknown bytes
     cur_offset += read(raw->camera_str, buf, cur_offset, 32);
@@ -81,34 +80,46 @@ void parse_raw(byte* buf, fuji_raw* raw){
     cur_offset += read(&raw->cfa_header_length, buf, cur_offset, 4);
     cur_offset += read(&raw->cfa_offset, buf, cur_offset, 4);
     cur_offset += read(&raw->cfa_length, buf, cur_offset, 4);
+    cur_offset += read(&raw->cfa_rec_count, buf, cur_offset, 4);
 
+    // deal with endianness. We assume that we are LE, the file is BE
     FBE(raw->jpeg_img_offset);
     FBE(raw->jpeg_img_length);
     FBE(raw->cfa_header_offset);
     FBE(raw->cfa_header_length);
     FBE(raw->cfa_offset);
     FBE(raw->cfa_length);
+    FBE(raw->cfa_rec_count);
 
-    // deal with endianness. We assume that we are LE, the file is BE
+    raw->jpeg_preview = malloc(raw->jpeg_img_length); 
+    if(!raw->jpeg_preview){
+        perror("Unable to allocate memory for preview jpeg");
+        exit(1); 
+    }
+    read(raw->jpeg_preview, buf, raw->jpeg_img_offset, raw->jpeg_img_length);
 
-    // // File header
-    // char magic[16];
-    // char camera_str[32];
-    // byte version[4]; 
-    // // Offset directory
-    // uint32_t jpeg_img_offset;
-    // uint32_t jpeg_img_length;
-    // uint32_t cfa_header_offset;
-    // uint32_t cfa_header_length;
-    // uint32_t cfa_offset;
-    // uint32_t cfa_length; 
-    // // Preview jpeg
-    // byte* jpeg_preview;
-    // // CFA headers
-    // uint32_t cfa_rec_count;
-    // cfa_record* cfa_rec;
-    // // Actual raw data
-    // byte* raw_data;
+    raw->cfa_rec = malloc(raw->cfa_rec_count * sizeof(*raw->cfa_rec));
+    if(!raw->cfa_rec){
+        perror("Unable to allocate memory for CFA records");
+        exit(1); 
+    }
+    size_t cfa_rec_counter = 0;
+    cur_offset = raw->cfa_offset;
+    for(int i = 0; i < raw->cfa_rec_count; i++){ 
+        cfa_record* rec = &raw->cfa_rec[cfa_rec_counter];
+        read(&rec->tag_id, buf, cur_offset, sizeof(rec->tag_id));
+        read(&rec->size, buf, cur_offset, sizeof(rec->size));
+        FBE(rec->size);
+        read(&rec->data, buf, cur_offset, rec->size);
+        cfa_rec_counter++;
+    }
+
+    raw->raw_data = malloc(raw->cfa_length); 
+    if(!raw->raw_data){
+        perror("Unable to allocate memory for raw data");
+        exit(1); 
+    }
+    read(raw->raw_data, buf, raw->cfa_offset, raw->cfa_length);
 }
 
 int main(int argc, char** argv){

@@ -2,12 +2,12 @@
 
 #define FR_BIG_ENDIAN 1
 #define FR_LITTLE_ENDIAN 0
-static uint8_t endianness = -1;
+static uint8_t endianness = 2;
 
 uint8_t determine_endianness(){ 
         uint16_t num = 0x1;
         uint8_t* ptr = (uint8_t*) &num;
-        return ptr[0] == 1 ? FR_LITTLE_ENDIAN : FR_BIG_ENDIAN;
+        return ptr[0] ? FR_LITTLE_ENDIAN : FR_BIG_ENDIAN;
 }
 
 void flip_endian(void* p_buf, size_t size){
@@ -22,7 +22,7 @@ void flip_endian(void* p_buf, size_t size){
 
 // from big endian
 void fbe(void* p_buf, size_t size){
-    if(endianness < 0){
+    if(endianness == 2){
        endianness = determine_endianness(); 
     }
     if(endianness == FR_LITTLE_ENDIAN){
