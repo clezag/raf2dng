@@ -10,22 +10,26 @@ uint8_t determine_endianness(){
         return ptr[0] ? FR_LITTLE_ENDIAN : FR_BIG_ENDIAN;
 }
 
-void flip_endian(void* p_buf, size_t size){
+void flip_endian(void* p_buf, size_t size, size_t blocks){
     byte* buf = p_buf;
     byte tmp;
-    for(size_t i = 0; i < size/2; i++){
-        tmp = buf[i];
-        buf[i] = buf[size-1-i];
-        buf[size-1-i] = tmp;
-    } 
+    size_t halfsize = size/2;
+    for(size_t b = 0; b < blocks; b++){
+        size_t offset = b * size;
+        for(size_t i = 0; i < halfsize; i++){
+            tmp = buf[offset + i];
+            buf[offset + i] = buf[offset + size-1-i];
+            buf[offset + size-1-i] = tmp;
+        } 
+    }
 }
 
 // from big endian
-void fbe(void* p_buf, size_t size){
+void fbe(void* p_buf, size_t size, size_t blocks){
     if(endianness == 2){
        endianness = determine_endianness(); 
     }
     if(endianness == FR_LITTLE_ENDIAN){
-        flip_endian(p_buf, size);
+        flip_endian(p_buf, size, blocks);
     } 
 }

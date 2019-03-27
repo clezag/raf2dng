@@ -6,7 +6,7 @@
 #include "endian.h"
 
 typedef struct {
-    byte tag_id[2];
+    uint16_t tag_id;
     uint16_t size;
     byte* data;
 } cfa_record;
@@ -29,6 +29,8 @@ typedef struct {
     uint32_t cfa_rec_count;
     cfa_record* cfa_rec;
     // Actual raw data
+    uint16_t cfa_height;
+    uint16_t cfa_width;
     byte* raw_data;
 } fuji_raw;
 
@@ -69,6 +71,7 @@ void readFileToBuffer(byte** buf, char* filename){
 void parse_raw(byte* buf, fuji_raw* raw){
     size_t cur_offset = 0;
 
+    // Read header and offset directory
     cur_offset += read(raw->magic, buf, cur_offset, 16);
     cur_offset += 12; // unknown bytes
     cur_offset += read(raw->camera_str, buf, cur_offset, 32);
@@ -80,7 +83,6 @@ void parse_raw(byte* buf, fuji_raw* raw){
     cur_offset += read(&raw->cfa_header_length, buf, cur_offset, 4);
     cur_offset += read(&raw->cfa_offset, buf, cur_offset, 4);
     cur_offset += read(&raw->cfa_length, buf, cur_offset, 4);
-    cur_offset += read(&raw->cfa_rec_count, buf, cur_offset, 4);
 
     // deal with endianness. We assume that we are LE, the file is BE
     FBE(raw->jpeg_img_offset);
@@ -89,8 +91,8 @@ void parse_raw(byte* buf, fuji_raw* raw){
     FBE(raw->cfa_header_length);
     FBE(raw->cfa_offset);
     FBE(raw->cfa_length);
-    FBE(raw->cfa_rec_count);
 
+    // Read preview JPG
     raw->jpeg_preview = malloc(raw->jpeg_img_length); 
     if(!raw->jpeg_preview){
         perror("Unable to allocate memory for preview jpeg");
@@ -98,29 +100,64 @@ void parse_raw(byte* buf, fuji_raw* raw){
     }
     read(raw->jpeg_preview, buf, raw->jpeg_img_offset, raw->jpeg_img_length);
 
-    raw->cfa_rec = malloc(raw->cfa_rec_count * sizeof(*raw->cfa_rec));
+    // Read CFA headers (Tags)
+    cur_offset = raw->cfa_header_offset;
+    cur_offset += read(&raw->cfa_rec_count, buf, cur_offset, 4);
+    FBE(raw->cfa_rec_count);
+
+    raw->cfa_rec = malloc(raw->cfa_rec_count * sizeof(cfa_record));
     if(!raw->cfa_rec){
         perror("Unable to allocate memory for CFA records");
         exit(1); 
     }
+    memset(raw->cfa_rec, 0, raw->cfa_rec_count * sizeof(cfa_record));
+
     size_t cfa_rec_counter = 0;
-    cur_offset = raw->cfa_offset;
     for(int i = 0; i < raw->cfa_rec_count; i++){ 
         cfa_record* rec = &raw->cfa_rec[cfa_rec_counter];
-        read(&rec->tag_id, buf, cur_offset, sizeof(rec->tag_id));
-        read(&rec->size, buf, cur_offset, sizeof(rec->size));
+        cur_offset += read(&rec->tag_id, buf, cur_offset, sizeof(rec->tag_id));
+        FBE(rec->tag_id);
+        cur_offset += read(&rec->size, buf, cur_offset, sizeof(rec->size));
         FBE(rec->size);
-        read(&rec->data, buf, cur_offset, rec->size);
+        rec->data = malloc(rec->size);
+        if(!rec->data){
+            perror("Unable to allocate memory for cfa header record");
+            exit(1);
+        }
+        cur_offset += read(rec->data, buf, cur_offset, rec->size);
+
+        // Tag ID  0x0100 is the full image size, with two bytes for height and width, respectively
+        if(rec->tag_id == 0x0100){
+            raw->cfa_height = ((uint16_t*)rec->data)[0];
+            FBE(raw->cfa_height);
+            raw->cfa_width = ((uint16_t*)rec->data)[1]; 
+            FBE(raw->cfa_width);
+        }
         cfa_rec_counter++;
     }
-
+    
+    // Read actual raw data
     raw->raw_data = malloc(raw->cfa_length); 
     if(!raw->raw_data){
         perror("Unable to allocate memory for raw data");
         exit(1); 
     }
     read(raw->raw_data, buf, raw->cfa_offset, raw->cfa_length);
+    // raw picture data is a bunch of 16 bit values (even though bitdepth is 14) 
+    fbe(raw->raw_data, 2, raw->cfa_length/2); 
 }
+
+void write_bitmap(fuji_raw* raw, char* filename){
+    FILE* img = fopen(filename, "wb");
+    char header[512]; 
+    sprintf(header, "P5 %d %d %d\n", raw->cfa_width, raw->cfa_height, 0x3FFF); // 0x3FFF is the maximum 14 bit value
+    fwrite(header, strlen(header), 1 , img);
+
+    fbe(raw->raw_data, 2, raw->cfa_length/2); 
+    fwrite(raw->raw_data, raw->cfa_width * raw->cfa_height, 1 , img);
+    fclose(img);
+}
+
 
 int main(int argc, char** argv){
     char* filename = argv[1];
@@ -132,9 +169,21 @@ int main(int argc, char** argv){
     parse_raw(buf, raw); 
     free(buf);
 
-    FILE* jpg = fopen("test.jpg", "wb");
-    fwrite(raw->jpeg_preview, raw->jpeg_img_length, 1, jpg);
-    fclose(jpg);
+    // FILE* jpg = fopen("test.jpg", "wb");
+    // fwrite(raw->jpeg_preview, raw->jpeg_img_length, 1, jpg);
+    // fclose(jpg);
+
+    for(int i = 0; i < raw->cfa_rec_count; i++){
+        printf("-----------\n");
+        printf("TagID: %04X\n", raw->cfa_rec[i].tag_id);
+        printf("Data:\n");
+        for(int x = 0; x < raw->cfa_rec[i].size; x++){ 
+            printf("%02X", raw->cfa_rec[i].data[x]);
+        }
+        printf("\n");
+    }
+
+    write_bitmap(raw, "test.pgm");
 
     return 0;
 }
