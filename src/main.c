@@ -144,17 +144,17 @@ void parse_raw(byte* buf, fuji_raw* raw){
     }
     read(raw->raw_data, buf, raw->cfa_offset, raw->cfa_length);
     // raw picture data is a bunch of 16 bit values (even though bitdepth is 14) 
-    fbe(raw->raw_data, 2, raw->cfa_length/2); 
+    //fbe(raw->raw_data, 2, raw->cfa_length/2); 
 }
 
 void write_bitmap(fuji_raw* raw, char* filename){
     FILE* img = fopen(filename, "wb");
     char header[512]; 
-    sprintf(header, "P5 %d %d %d\n", raw->cfa_width, raw->cfa_height, 0x3FFF); // 0x3FFF is the maximum 14 bit value
+    sprintf(header, "P5 %d %d %d\n", raw->cfa_width, raw->cfa_height, UINT16_MAX); // 32767 is maximum 14 bit value 
     fwrite(header, strlen(header), 1 , img);
 
-    fbe(raw->raw_data, 2, raw->cfa_length/2); 
-    fwrite(raw->raw_data, raw->cfa_width * raw->cfa_height, 1 , img);
+    byte* ptr = raw->raw_data + 2048; // Apparently, the difference between cfa_length and 16/8 * height * length is an empty bit at the beginning of the raw data
+    fwrite(ptr, raw->cfa_width * raw->cfa_height * 2, 1 , img);
     fclose(img);
 }
 
@@ -173,15 +173,18 @@ int main(int argc, char** argv){
     // fwrite(raw->jpeg_preview, raw->jpeg_img_length, 1, jpg);
     // fclose(jpg);
 
-    for(int i = 0; i < raw->cfa_rec_count; i++){
-        printf("-----------\n");
-        printf("TagID: %04X\n", raw->cfa_rec[i].tag_id);
-        printf("Data:\n");
-        for(int x = 0; x < raw->cfa_rec[i].size; x++){ 
-            printf("%02X", raw->cfa_rec[i].data[x]);
-        }
-        printf("\n");
-    }
+    // for(int i = 0; i < raw->cfa_rec_count; i++){
+    //     printf("-----------\n");
+    //     printf("TagID: %04X\n", raw->cfa_rec[i].tag_id);
+    //     printf("Data:\n");
+    //     for(int x = 0; x < raw->cfa_rec[i].size; x++){ 
+    //         printf("%02X", raw->cfa_rec[i].data[x]);
+    //     }
+    //     printf("\n");
+    // }
+    printf("CFA length: %d\n", raw->cfa_length);
+    printf("CFA width: %d\n", raw->cfa_width);
+    printf("CFA height: %d\n", raw->cfa_height);
 
     write_bitmap(raw, "test.pgm");
 
