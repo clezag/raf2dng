@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include "type.h"
+#include "util.h"
 
-// from big endian. Reads a big endian value and converts it to local endianness
+// from/to big endian. If local endianness is not big, flips the endianness 
 void fbe(void* p_buf, size_t size, size_t blocks);
 #define FBE(x) fbe(&x, sizeof(x), 1)
 
