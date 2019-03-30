@@ -35,6 +35,16 @@ typedef struct {
     byte* raw_data;
 } fuji_raw;
 
+typedef enum {R = 0,
+              G = 1,
+              B = 2} color;
+static const color xtrans_cfa[6][6] = {{G,B,G,G,R,G},
+                                       {R,G,R,B,G,B},
+                                       {G,B,G,G,R,G},
+                                       {G,R,G,G,B,G},
+                                       {B,G,B,R,G,R},
+                                       {G,R,G,G,B,G}};
+
 void parse_raw(byte* buf, fuji_raw* raw);
 
 #endif

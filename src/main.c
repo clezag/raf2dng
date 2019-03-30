@@ -17,7 +17,8 @@ int main(int argc, char** argv){
 
     write_raw_tags(raw, "test/tags.txt");
     write_jpeg(raw, "test/preview.jpg");
-    write_bitmap(raw, "test/raw.pgm");
+    write_greyscale_bitmap(raw, "test/raw.pgm");
+    write_color_bitmap(raw, "test/raw.ppg");
 
     return 0;
 }
