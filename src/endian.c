@@ -24,7 +24,6 @@ void flip_endian(void* p_buf, size_t size, size_t blocks){
     }
 }
 
-// from big endian
 void fbe(void* p_buf, size_t size, size_t blocks){
     if(endianness == 2){
        endianness = determine_endianness(); 
