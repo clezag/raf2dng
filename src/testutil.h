@@ -9,7 +9,10 @@
 #include "raw.h"
 
 // Write raw pixel data to PGM file
-void write_bitmap(fuji_raw* raw, char* filename);
+void write_greyscale_bitmap(fuji_raw* raw, char* filename);
+
+// Write raw pixel data to PPM file
+void write_color_bitmap(fuji_raw* raw, char* filename);
 
 // Write included preview JPEG to file
 void write_jpeg(fuji_raw* raw, char* filename);
