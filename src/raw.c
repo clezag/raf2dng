@@ -3,6 +3,13 @@
 void parse_raw(byte* buf, fuji_raw* raw){
     size_t cur_offset = 0;
 
+    // Empirical values, found out by experimentation. Only holds true for X-T1 (and maybe other 1st gen Xtrans)
+    // Make this configurable per camera
+    raw->xtrans_offset_x = 2;
+    raw->xtrans_offset_y = 1;
+
+    raw->max_px_value = 16383; // Empirical value. Will change per camera
+
     // Read header and offset directory
     cur_offset += read(raw->magic, buf, cur_offset, 16);
     cur_offset += 12; // unknown bytes

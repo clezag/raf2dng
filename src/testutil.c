@@ -4,7 +4,7 @@ void write_greyscale_bitmap(fuji_raw* raw, char* filename){
     FILE* img = fopen(filename, "wb");
     char header[512]; 
     // Header structure is: filetype width height max_pixel_value
-    sprintf(header, "P5 %d %d %d\n", raw->cfa_width, raw->cfa_height, 32767); // 32767 is maximum 14 bit value 
+    sprintf(header, "P5 %d %d %d\n", raw->cfa_width, raw->cfa_height, raw->max_px_value);
     fwrite(header, strlen(header), 1 , img);
 
     byte* buf = malloc(raw->cfa_length); 
@@ -19,7 +19,7 @@ void write_color_bitmap(fuji_raw* raw, char* filename){
     FILE* img = fopen(filename, "wb");
     char header[512]; 
     // Header structure is: filetype width height max_pixel_value
-    sprintf(header, "P6 %d %d %d\n", raw->cfa_width, raw->cfa_height, 32767); // 32767 is maximum 14 bit value 
+    sprintf(header, "P6 %d %d %d\n", raw->cfa_width, raw->cfa_height, raw->max_px_value);
     fwrite(header, strlen(header), 1 , img);
 
     size_t bufsize = raw->cfa_width * raw->cfa_height * 6; // three 16 bit values per pixel
@@ -29,10 +29,16 @@ void write_color_bitmap(fuji_raw* raw, char* filename){
     // Byte order for PPM is big endian
     size_t raw_pitch = raw->cfa_width * 2;
     size_t ppm_pitch = raw->cfa_width * 6;
+    uint16_t px_value;
+    uint8_t xtrans_x;
+    uint8_t xtrans_y;
     for(size_t y = 0; y < raw->cfa_height; y++){
         for(size_t x = 0; x < raw->cfa_width; x++){
-            color c = xtrans_cfa[y % 6][x % 6]; // determine which color the pixel is, applying the color filter array
-            buf[y * ppm_pitch + x * 6 + 2 * c] = *(raw->raw_data + y * raw_pitch + x * 2);
+            xtrans_x = (x + raw->xtrans_offset_x) % 6; 
+            xtrans_y = (y + raw->xtrans_offset_y) % 6; 
+            color c = xtrans_cfa[xtrans_y][xtrans_x]; // determine which color the pixel is, applying the color filter array
+            px_value = *(raw->raw_data + y * raw_pitch + x * 2);
+            buf[y * ppm_pitch + x * 6 + 2 * c] = px_value;
         }
     }
 

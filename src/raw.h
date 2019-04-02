@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include "util.h"
 #include "endian.h"
 
@@ -33,6 +34,13 @@ typedef struct {
     uint16_t cfa_height;
     uint16_t cfa_width;
     byte* raw_data;
+
+    // Offset with which to start applying the color filter array
+    uint8_t xtrans_offset_x;
+    uint8_t xtrans_offset_y;
+
+    // Maximum value of a single raw data point
+    uint16_t max_px_value;
 } fuji_raw;
 
 typedef enum {R = 0,
