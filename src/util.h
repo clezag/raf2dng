@@ -1,7 +1,9 @@
 #ifndef UTIL_H
 #define UTIL_H
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 typedef uint8_t byte;
 
